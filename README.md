@@ -72,7 +72,8 @@ The page is static and uses the anon key, which is visible in the browser. The S
 
 ## Troubleshooting
 
-- **"Could not connect"** — check the URL/key, and confirm `schema.sql` ran without errors.
+- **"Could not connect: Cannot reach https://...supabase.co"** — a *paused* Supabase project stops serving its hostname and fails DNS as NXDOMAIN. Check the project list for a **Paused** badge and resume the project (Project Settings -> Project availability -> Restart project), then wait a few minutes.
+- **"Could not connect"** with a database error — check the URL/key, and confirm `schema.sql` ran without errors.
 - **"Setup needed"** banner — the `cleaning_tasks` table is empty; run the SQL again or tap **Load sample tasks**.
 - **Grid does not load checks** — tap **Sync**; also check the browser has internet access for the Supabase script.
 - **A save fails** — check the four RLS policies in `supabase/schema.sql` and the anon key.
