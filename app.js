@@ -157,7 +157,12 @@
     var testClient = window.supabase.createClient(apiUrl, key.trim(), {
       auth: { persistSession: false }
     });
-    var result = await testClient.from('cleaning_tasks').select('id').limit(1);
+    var result;
+    try {
+      result = await testClient.from('cleaning_tasks').select('id').limit(1);
+    } catch (err) {
+      throw new Error('Cannot reach ' + apiUrl + '. Copy the exact Project URL from Supabase > Project Settings > API, make sure the project is not paused, and test in a normal browser (the in-app preview may block network requests).');
+    }
     if (result.error) {
       var message = result.error.message;
       if (/does not exist|relation/i.test(message)) {
