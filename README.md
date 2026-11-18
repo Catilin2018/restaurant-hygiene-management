@@ -18,7 +18,7 @@ The layout follows the original Excel file: every task is a row, days 1-31 are c
 
 1. Create a free project at [supabase.com/dashboard](https://supabase.com/dashboard).
 2. Open **SQL Editor**, create a new query, paste the whole contents of `supabase/schema.sql`, and run it. This creates four tables and seeds the 22 tasks from the Excel file.
-3. Open **Project Settings -> API** and copy the **Project URL** and the **anon / public** key.
+3. Open **Project Settings -> API** and copy the **Project URL** (`https://<project-ref>.supabase.co`) and the **anon / public** key. Newer projects show a `sb_publishable_...` key — that works too. If you copy the dashboard link (`https://supabase.com/dashboard/project/<ref>`) instead, the page converts it to the API URL automatically.
 
 Do not use the `service_role` key — it must never appear in a web page.
 

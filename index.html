@@ -88,10 +88,10 @@
   <div class="overlay" id="setupOverlay" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
       <h2 id="setupTitle">Connect Supabase</h2>
-      <p>Paste the project URL and the <strong>anon / public</strong> key from your Supabase project. Run <code>supabase/schema.sql</code> in the SQL editor first.</p>
-      <label for="supaUrl">Project URL</label>
+      <p>Paste the project's <strong>API URL</strong> and <strong>anon / public</strong> key from Project Settings &rarr; API. A dashboard link (<code>supabase.com/dashboard/project/...</code>) is converted automatically. Run <code>supabase/schema.sql</code> in the SQL editor first.</p>
+      <label for="supaUrl">Project API URL</label>
       <input id="supaUrl" type="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
-      <label for="supaKey">Anon / public key</label>
+      <label for="supaKey">Anon / public key (sb_publishable_... also works)</label>
       <input id="supaKey" type="text" placeholder="eyJhbGciOi..." autocomplete="off" spellcheck="false">
       <p class="modal-note">These values are saved only in this browser. Do not use a service-role key.</p>
       <p id="setupError" class="error" hidden></p>

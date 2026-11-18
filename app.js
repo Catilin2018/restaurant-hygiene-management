@@ -134,20 +134,37 @@
     }
   }
 
+  function normalizeSupabaseUrl(raw) {
+    var value = String(raw || '').trim().replace(/\/+$/, '');
+    var dashboard = value.match(/^https:\/\/supabase\.com\/dashboard\/project\/([a-z0-9]+)(?:[/?#].*)?$/i);
+    if (dashboard) return 'https://' + dashboard[1].toLowerCase() + '.supabase.co';
+    if (!/^https:\/\/[^\s]+$/i.test(value)) {
+      throw new Error('Enter a valid Supabase project URL (https://xxxx.supabase.co).');
+    }
+    return value;
+  }
+
   function writeConfig(url, key) {
-    localStorage.setItem(URL_KEY, url.trim().replace(/\/+$/, ''));
-    localStorage.setItem(KEY_KEY, key.trim());
+    localStorage.setItem(URL_KEY, url);
+    localStorage.setItem(KEY_KEY, key);
   }
 
   async function connect(url, key) {
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
       throw new Error('The Supabase script did not load. Check the internet connection and reload the page.');
     }
-    var testClient = window.supabase.createClient(url.trim().replace(/\/+$/, ''), key.trim(), {
+    var apiUrl = normalizeSupabaseUrl(url);
+    var testClient = window.supabase.createClient(apiUrl, key.trim(), {
       auth: { persistSession: false }
     });
     var result = await testClient.from('cleaning_tasks').select('id').limit(1);
-    if (result.error) throw new Error(result.error.message);
+    if (result.error) {
+      var message = result.error.message;
+      if (/does not exist|relation/i.test(message)) {
+        message += ' - run supabase/schema.sql in the SQL Editor first.';
+      }
+      throw new Error(message);
+    }
     client = testClient;
     connected = true;
     previewMode = false;
@@ -528,16 +545,29 @@
     $('settingsBtn').addEventListener('click', function () { openSetup(); });
     $('previewBtn').addEventListener('click', enterPreview);
 
+    $('supaUrl').addEventListener('blur', function () {
+      try {
+        var normalized = normalizeSupabaseUrl($('supaUrl').value);
+        if (normalized !== $('supaUrl').value.trim().replace(/\/+$/, '')) {
+          $('supaUrl').value = normalized;
+        }
+      } catch (e) {
+        // Leave the text as typed; Save shows the exact error.
+      }
+    });
+
     $('saveConfig').addEventListener('click', async function () {
-      var url = $('supaUrl').value.trim();
       var key = $('supaKey').value.trim();
-      if (!/^https:\/\/[^\s]+\.supabase\.co\/?$/i.test(url)) {
-        $('setupError').textContent = 'Enter a valid Supabase project URL (https://xxxx.supabase.co).';
+      var url;
+      try {
+        url = normalizeSupabaseUrl($('supaUrl').value);
+      } catch (err) {
+        $('setupError').textContent = err.message;
         $('setupError').hidden = false;
         return;
       }
       if (!key) {
-        $('setupError').textContent = 'Enter the anon / public key.';
+        $('setupError').textContent = 'Enter the anon / public key (or the sb_publishable_... key).';
         $('setupError').hidden = false;
         return;
       }
