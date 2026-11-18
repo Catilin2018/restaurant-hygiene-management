@@ -1,110 +1,552 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f766e">
-  <title>Daily Cleaning Log — Shaking Tang Management</title>
-  <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Cleaning Log · Shaking Tang Management</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
+<style>
+:root{
+  --bg:#f4f6f8;--surface:#fff;--surface-2:#f8fafb;--line:#e3e8ec;
+  --ink:#16232b;--ink-2:#5b6b75;--ink-3:#8a99a3;
+  --brand:#0d7a5f;--brand-deep:#075e49;--brand-soft:#e6f4ef;
+  --amber:#b26a00;--red:#c0392b;--blue:#1f5f9e;--blue-soft:#e8f1fa;
+  --shadow:0 1px 2px rgba(16,40,51,.05),0 6px 18px rgba(16,40,51,.06);--radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit}
+button{cursor:pointer}
+.wrap{max-width:980px;margin:0 auto;padding:0 14px 110px}
+
+header{background:linear-gradient(135deg,var(--brand-deep),var(--brand));color:#fff;padding:18px 0 16px;position:sticky;top:0;z-index:30;box-shadow:0 4px 16px rgba(7,94,73,.18)}
+.head-inner{max-width:980px;margin:0 auto;padding:0 14px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.logo{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,.16);display:grid;place-items:center;font-size:15px;font-weight:800;flex:none}
+.brand h1{font-size:17px;margin:0;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand p{margin:1px 0 0;font-size:11px;opacity:.8}
+.head-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hbtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);color:#fff;border-radius:9px;padding:7px 11px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;min-height:38px}
+.hbtn:hover{background:rgba(255,255,255,.24)}
+#saveState{font-size:12px;opacity:.92;display:flex;align-items:center;gap:5px;min-width:78px;justify-content:flex-end}
+.dot{width:7px;height:7px;border-radius:50%;background:#7ee2bd;display:inline-block;flex:none}
+.dot.saving{background:#ffd67e}.dot.err{background:#ff9a8f}
+
+.controls{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:74px;z-index:25}
+.controls-inner{max-width:980px;margin:0 auto;padding:11px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;font-weight:700;color:var(--ink-2);letter-spacing:.3px;text-transform:uppercase}
+.field input{border:1px solid var(--line);background:var(--surface-2);border-radius:9px;padding:8px 10px;color:var(--ink);min-width:130px;height:38px}
+.field input:focus{outline:2px solid var(--brand);outline-offset:1px;background:#fff}
+.field.grow{flex:1;min-width:150px}.field.grow input{width:100%}
+
+.tabs{max-width:980px;margin:14px auto 0;padding:0 14px;display:flex;gap:6px}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:10px;padding:9px 15px;font-weight:650;font-size:14px;flex:1;text-align:center;transition:.15s}
+.tab:hover{border-color:#bcd4cc;color:var(--brand-deep)}
+.tab.active{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 4px 12px rgba(13,122,95,.22)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin:14px 0;overflow:hidden}
+.card-hd{padding:15px 17px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+.card-hd h2{margin:0;font-size:15px;letter-spacing:.2px}
+.card-hd .sub{font-size:12px;color:var(--ink-2);margin-top:2px}
+.badge{background:var(--brand-soft);color:var(--brand-deep);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+
+.row{padding:13px 17px;border-bottom:1px solid var(--line);display:flex;gap:13px;align-items:flex-start}
+.row:last-child{border-bottom:0}
+.row.done{background:linear-gradient(90deg,var(--brand-soft),transparent 60%)}
+.row-main{flex:1;min-width:0}
+.area{font-weight:700;font-size:14px;margin-bottom:2px}
+.zh{color:var(--ink-2);font-weight:500;font-size:12px}
+.note-wrap{margin-top:8px}
+.note{width:100%;border:1px dashed #c9d4da;border-radius:8px;padding:7px 9px;font-size:13px;background:var(--surface-2);resize:vertical;min-height:34px}
+.note:focus{outline:none;border-style:solid;border-color:var(--brand);background:#fff}
+.row-side{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;width:74px}
+.check{width:58px;height:52px;border-radius:12px;border:2px solid var(--line);background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:var(--ink-3);transition:.12s;user-select:none;-webkit-tap-highlight-color:transparent}
+.check b{font-size:19px;line-height:1}.check small{font-size:9px;font-weight:700;letter-spacing:.4px}
+.check:hover{border-color:var(--brand);color:var(--brand)}
+.check.on{background:var(--brand);border-color:var(--brand);color:#fff;box-shadow:0 3px 10px rgba(13,122,95,.25)}
+.row-side .lbl{font-size:10px;color:var(--ink-3);text-align:center}
+
+.sig{padding:13px 17px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.sig .field{flex:1;min-width:140px}.sig .field input{width:100%}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:14px 17px}
+.stat{border:1px solid var(--line);border-radius:11px;padding:12px;background:var(--surface-2)}
+.stat .n{font-size:24px;font-weight:800;color:var(--brand-deep);line-height:1.1}
+.stat .l{font-size:11px;color:var(--ink-2);margin-top:3px}
+.prog{height:8px;background:#e9eef0;border-radius:8px;overflow:hidden;margin:0 17px 14px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),#37a884);border-radius:8px;transition:width .3s}
+.ov-grid{padding:4px 17px 16px}
+.ov-item{padding:9px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.ov-item:last-child{border:0}
+.tick{color:var(--brand);font-weight:800;flex:none;width:18px}.tick.miss{color:#cbd5da}
+.readonly-note{background:var(--blue-soft);color:var(--blue);border-radius:10px;padding:9px 12px;font-size:12px;margin:14px 0 0}
+
+.hist{padding:6px 17px 16px}
+.hrow{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.hrow:last-child{border:0}.hrow:hover{background:var(--surface-2)}
+.hdate{font-weight:800;font-variant-numeric:tabular-nums;min-width:96px}
+.hdate small{display:block;font-weight:500;color:var(--ink-2);font-size:11px}
+.hbar{flex:1;height:8px;background:#e9eef0;border-radius:8px;overflow:hidden}
+.hbar i{display:block;height:100%;background:var(--brand)}
+.hpct{font-size:12px;font-weight:700;color:var(--ink-2);min-width:38px;text-align:right}
+.empty{text-align:center;color:var(--ink-3);padding:34px 16px;font-size:13px}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:#16232b;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.22s;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.bad{background:var(--red)}
+.mask{position:fixed;inset:0;background:rgba(10,25,32,.45);display:none;align-items:center;justify-content:center;z-index:70;padding:16px}
+.mask.show{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{margin:0 0 10px;font-size:17px}.modal p{margin:0 0 14px;color:var(--ink-2);font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{border:1px solid var(--line);border-radius:20px;padding:7px 13px;background:var(--surface-2);font-weight:650;font-size:13px}
+.chip.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.modal input{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:12px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:9px 15px;font-weight:700;color:var(--ink-2)}
+.btn.pri{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2)}
+.opt{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;cursor:pointer;background:var(--surface-2)}
+.opt.on{border-color:var(--brand);background:var(--brand-soft)}
+.opt input{margin:3px 0 0;accent-color:var(--brand)}
+.opt b{display:block;font-size:13.5px}.opt span{display:block;font-size:11.5px;color:var(--ink-2)}
+.export-dates{display:flex;gap:8px;margin:4px 0 14px}
+.export-dates .field{flex:1;min-width:0}.export-dates input{width:100%;min-width:0!important}
+
+@media(max-width:640px){
+  header{padding:12px 0}.brand h1{font-size:15px}.brand p{display:none}
+  .controls{top:66px}.controls-inner{padding:9px 14px}
+  .field input{min-width:0}.field.grow{min-width:120px}
+  .row{padding:12px;gap:9px}.row-side{width:64px}.check{width:52px;height:48px}
+  .card-hd,.sig{padding-left:13px;padding-right:13px}
+  .tab{padding:9px 6px;font-size:12.5px}
+}
+</style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 20h16M6 20l1.5-8h9L18 20M9 12V7a3 3 0 0 1 6 0v5M12 4V2"/>
-          </svg>
-        </span>
-        <div>
-          <h1>Daily Cleaning Log</h1>
-          <p>Shaking Tang Management</p>
-        </div>
-      </div>
-      <div class="top-actions">
-        <button class="btn" id="syncBtn" type="button" title="Reload the latest records from Supabase">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>
-          Sync
-        </button>
-        <button class="btn" id="exportBtn" type="button" title="Download this month as a CSV file">Export CSV</button>
-        <button class="btn btn-primary" id="settingsBtn" type="button">Settings</button>
-      </div>
-    </header>
-
-    <div id="statusBanner" class="banner banner-warn" hidden></div>
-
-    <main>
-      <section class="summary" aria-label="Progress summary">
-        <div class="stat">
-          <span class="stat-label">Month progress</span>
-          <strong id="monthPercent">0%</strong>
-          <div class="progress"><div id="monthBar" class="progress-fill"></div></div>
-          <span id="monthDetail" class="stat-note">0 of 0 checks</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Today completed</span>
-          <strong id="todayCount">0 / 0</strong>
-          <span id="todayDate" class="stat-note">tasks checked today</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Records</span>
-          <strong id="recordState">Not connected</strong>
-          <span id="lastSync" class="stat-note">Connect Supabase in Settings</span>
-        </div>
-      </section>
-
-      <section class="month-nav" aria-label="Month navigation">
-        <button class="btn icon-btn" id="prevMonth" type="button" aria-label="Previous month">&#8249;</button>
-        <h2 id="monthLabel">Month</h2>
-        <button class="btn icon-btn" id="nextMonth" type="button" aria-label="Next month">&#8250;</button>
-        <button class="btn" id="todayMonth" type="button">This month</button>
-        <span class="grid-hint">Tap a square to mark done &middot; tap again to undo</span>
-      </section>
-
-      <section class="card checklist-card">
-        <div class="grid-scroll" id="gridScroll">
-          <table id="checkTable" class="check-table" aria-label="Daily cleaning checklist"></table>
-        </div>
-      </section>
-
-      <section class="card staff-card">
-        <div class="card-head">
-          <div>
-            <h2>Staff totals</h2>
-            <p>Enter the daily total for each person. Two blocks are kept, matching the original sheet.</p>
-          </div>
-          <button class="btn" id="exportStaffBtn" type="button">Export staff CSV</button>
-        </div>
-        <div class="staff-grid" id="staffGrid"></div>
-      </section>
-
-      <footer class="footer">
-        <span>Data is stored in Supabase. Nothing is printed.</span>
-        <span id="footerStatus"></span>
-      </footer>
-    </main>
-  </div>
-
-  <div class="overlay" id="setupOverlay" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
-      <h2 id="setupTitle">Connect Supabase</h2>
-      <p>Paste the project's <strong>API URL</strong> and <strong>anon / public</strong> key from Project Settings &rarr; API. A dashboard link (<code>supabase.com/dashboard/project/...</code>) is converted automatically. Run <code>supabase/schema.sql</code> in the SQL editor first.</p>
-      <label for="supaUrl">Project API URL</label>
-      <input id="supaUrl" type="url" placeholder="https://xxxxxxxx.supabase.co" autocomplete="off" spellcheck="false">
-      <label for="supaKey">Anon / public key (sb_publishable_... also works)</label>
-      <input id="supaKey" type="text" placeholder="eyJhbGciOi..." autocomplete="off" spellcheck="false">
-      <p class="modal-note">These values are saved only in this browser. Do not use a service-role key.</p>
-      <p id="setupError" class="error" hidden></p>
-      <div class="modal-actions">
-        <button class="btn" id="previewBtn" type="button">Preview only</button>
-        <button class="btn btn-primary" id="saveConfig" type="button">Save &amp; connect</button>
+<header>
+  <div class="head-inner">
+    <div class="brand">
+      <div class="logo">CL</div>
+      <div>
+        <h1>Daily Cleaning Log / 每日清洁记录</h1>
+        <p>Shaking Tang Management · One record per day / 每天一条记录</p>
       </div>
     </div>
+    <div class="head-actions">
+      <span id="saveState"><i class="dot"></i><span>Ready</span></span>
+      <button class="hbtn" id="whoBtn">[ ] <span id="whoLabel">Pick name / 选姓名</span></button>
+      <button class="hbtn" id="exportBtn" title="Export to Excel / 导出 Excel">Export</button>
+      <button class="hbtn" id="refreshBtn" title="Reload latest / 重新载入">Reload</button>
+    </div>
   </div>
+</header>
 
-  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="controls">
+  <div class="controls-inner">
+    <div class="field"><label>Date / 日期</label><input type="date" id="datePick"></div>
+    <div class="field grow"><label>Employee / 员工</label><input id="empName" placeholder="Name / 姓名"></div>
+    <div class="field"><label>Working hours / 工作时间</label><input id="workHours" placeholder="e.g. 09:00-18:00"></div>
+    <div class="field"><label>Manager / 经理</label><input id="mgrName" placeholder="Name / 姓名"></div>
+  </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="app.js"></script>
+<div class="tabs">
+  <button class="tab active" data-tab="entry">Staff entry / 员工填写</button>
+  <button class="tab" data-tab="overview">Overview / 查看</button>
+  <button class="tab" data-tab="history">History / 历史</button>
+</div>
+
+<div class="wrap">
+  <div id="paneEntry"></div>
+  <div id="paneOverview" style="display:none"></div>
+  <div id="paneHistory" style="display:none"></div>
+</div>
+
+<div class="mask" id="nameMask">
+  <div class="modal">
+    <h3>Who's using this? / 谁在使用？</h3>
+    <p>No password needed. Pick your name so the record shows who did what. / 无需密码，选择姓名即可记录谁完成了什么。</p>
+    <div class="chips" id="nameChips"></div>
+    <input id="customName" placeholder="Or type a new name / 或输入新姓名">
+    <div class="modal-btns">
+      <button class="btn ghost" id="nameCancel">Cancel / 取消</button>
+      <button class="btn pri" id="nameSave">Continue / 继续</button>
+    </div>
+  </div>
+</div>
+
+<div class="mask" id="exportMask">
+  <div class="modal">
+    <h3>Export to Excel / 导出 Excel</h3>
+    <p>Choose which records to download as an .xlsx workbook. / 选择要下载为 .xlsx 文件的记录。</p>
+    <label class="opt on" data-opt="day"><input type="radio" name="expscope" value="day" checked><span><b>Current day / 当前一天</b><span>Only the date selected above / 仅上方所选日期</span></span></label>
+    <label class="opt" data-opt="range"><input type="radio" name="expscope" value="range"><span><b>Date range / 日期范围</b><span>Every record between two dates / 两个日期之间的所有记录</span></span></label>
+    <label class="opt" data-opt="all"><input type="radio" name="expscope" value="all"><span><b>All records / 全部记录</b><span>Full backup of every day on file / 全部历史记录完整备份</span></span></label>
+    <div class="export-dates" id="exportDates" style="display:none">
+      <div class="field"><label>From / 从</label><input type="date" id="expFrom"></div>
+      <div class="field"><label>To / 到</label><input type="date" id="expTo"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn ghost" id="expCancel">Cancel / 取消</button>
+      <button class="btn pri" id="expGo">Download / 下载</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= checklist content from the Excel sheet ================= */
+const SECTIONS = [
+  {id:'daily', title:'EVERY DAY', zh:'每日清洁'},
+  {id:'weekly', title:'Weekly (one time a week)', zh:'每周一次'},
+  {id:'special', title:'Special areas', zh:'专项区域'}
+];
+const TASKS = [
+  {id:'d01',section:'daily',label:'Wash up Dishes',zh:'洗碗'},
+  {id:'d02',section:'daily',label:'Wash up area sinks, shelves...',zh:'清洁区域水槽、架子...'},
+  {id:'d03',section:'daily',label:'Wash up Bain Marle containers',zh:'清洁 Bain Marle 容器'},
+  {id:'d04',section:'daily',label:'Wash up and clean wash mach',zh:'清洗洗衣机'},
+  {id:'d05',section:'daily',label:'Bins (remove bags and clean)',zh:'垃圾桶（换袋并清洁）'},
+  {id:'d06',section:'daily',label:'Cold Room, Broom and Mop',zh:'冷库、扫地和拖地'},
+  {id:'d07',section:'daily',label:'Broom and mop kitchen',zh:'厨房扫地和拖地'},
+  {id:'d08',section:'daily',label:'Broom and mop Stairs',zh:'楼梯扫地和拖地'},
+  {id:'d09',section:'daily',label:'Clean the shelves Sink area',zh:'清洁水槽区架子'},
+  {id:'d10',section:'daily',label:'Clean the shelves Rice area',zh:'清洁米饭区架子'},
+  {id:'d11',section:'daily',label:'Clean the shelves Fryers area',zh:'清洁炸炉区架子'},
+  {id:'d12',section:'daily',label:'Clean the Tables Fryer area',zh:'清洁炸炉区桌子'},
+  {id:'d13',section:'daily',label:'Clean the Tables Cocking area',zh:'清洁烹饪区桌子'},
+  {id:'d14',section:'daily',label:'Clean the Toilet floor',zh:'清洁厕所地面'},
+  {id:'w01',section:'weekly',label:'Deep clean Shelves Rice area',zh:'深度清洁米饭区架子'},
+  {id:'w02',section:'weekly',label:'Deep clean Shelves Sinks area',zh:'深度清洁水槽区架子'},
+  {id:'w03',section:'weekly',label:'Deep clean Shelves Fryer area',zh:'深度清洁炸炉区架子'},
+  {id:'w04',section:'weekly',label:'Deep clean Table Fryer area',zh:'深度清洁炸炉区桌子'},
+  {id:'w05',section:'weekly',label:'Deep clean Table Cocking area',zh:'深度清洁烹饪区桌子'},
+  {id:'s01',section:'special',label:'Clean the freezer',zh:'清洁冷柜'},
+  {id:'s02',section:'special',label:'Scrath around doors and tables legs',zh:'刮擦门边和桌腿'},
+  {id:'s03',section:'special',label:'Clean the walls areas 1, 2, 3 and 4',zh:'清洁 1、2、3、4 区墙面'}
+];
+
+/* ================= cloud client (Supabase) ================= */
+let cloud;
+try{
+  if(!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) throw new Error('Missing SUPABASE_URL / SUPABASE_ANON_KEY in config.js');
+  cloud = { database: supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+    auth:{ persistSession:false, autoRefreshToken:false }
+  })};
+}catch(e){ console.error(e); setSave('error','Config error'); }
+
+/* ================= state ================= */
+const TODAY = new Date().toLocaleDateString('en-CA');
+let state = {
+  date: TODAY, data: null, dirty: new Set(),
+  currentUser: localStorage.getItem('dc_current_user') || '',
+  roster: JSON.parse(localStorage.getItem('dc_roster') || '[]'),
+  tab: 'entry'
+};
+function emptyData(date){
+  const tasks={};
+  TASKS.forEach(t=>tasks[t.id]={done:false,notes:''});
+  return {date, meta:{employee:'',workingHours:'',manager:'',empSig:'',mgrSig:''},tasks,activity:[],updatedAt:null,updatedBy:''};
+}
+function setSave(kind,text){
+  const el=document.getElementById('saveState'); if(!el)return;
+  el.innerHTML='<i class="dot '+(kind==='saving'?'saving':kind==='error'?'err':'')+'"></i><span>'+text+'</span>';
+}
+function toast(msg,bad){const t=document.getElementById('toast');t.textContent=msg;t.className='show'+(bad?' bad':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2600);}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function getPath(obj,path){return path.split('.').reduce((o,k)=>o==null?undefined:o[k],obj);}
+function setPath(obj,path,val){const ks=path.split('.');let o=obj;for(let i=0;i<ks.length-1;i++){if(!o[ks[i]])o[ks[i]]={};o=o[ks[i]];}o[ks[ks.length-1]]=val;}
+
+/* ================= load / save ================= */
+let saveTimer=null, saving=false;
+async function loadDate(date){
+  setSave('saving','Loading...');
+  try{
+    const {data,error} = await cloud.database.from('daily_cleaning_reports').select('*').eq('report_date',date).maybeSingle();
+    if(error) throw error;
+    const base = emptyData(date);
+    if(data && data.data){
+      state.data = Object.assign(base, data.data);
+      state.data.tasks = Object.assign(base.tasks, data.data.tasks||{});
+      state.data.meta = Object.assign(base.meta, data.data.meta||{});
+    }else{
+      state.data = base;
+    }
+    state.data.date = date;
+    state.dirty.clear();
+    document.getElementById('datePick').value = date;
+    document.getElementById('empName').value = state.data.meta.employee||'';
+    document.getElementById('workHours').value = state.data.meta.workingHours||'';
+    document.getElementById('mgrName').value = state.data.meta.manager||'';
+    render();
+    setSave('ok','Saved');
+  }catch(e){
+    console.warn(e);
+    state.data = emptyData(date); render();
+    setSave('error','Offline');
+    toast('Could not load cloud data / 无法载入云端数据',true);
+  }
+}
+function markDirty(path,val){
+  setPath(state.data,path,val);
+  state.dirty.add(path);
+  setSave('saving','Saving...');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(flush,700);
+}
+async function flush(){
+  if(saving || !state.data || state.dirty.size===0)return;
+  saving=true;
+  const paths=[...state.dirty]; state.dirty.clear();
+  try{
+    const {data:remote,error:e1}=await cloud.database.from('daily_cleaning_reports').select('*').eq('report_date',state.data.date).maybeSingle();
+    if(e1) throw e1;
+    const base = emptyData(state.data.date);
+    const merged = remote && remote.data ? Object.assign(base, remote.data) : base;
+    merged.tasks = Object.assign(base.tasks, remote && remote.data ? (remote.data.tasks||{}) : {});
+    merged.meta = Object.assign(base.meta, remote && remote.data ? (remote.data.meta||{}) : {});
+    paths.forEach(p=>setPath(merged,p,getPath(state.data,p)));
+    merged.updatedAt=new Date().toISOString();
+    merged.updatedBy=state.currentUser||'Staff';
+    const act={by:merged.updatedBy,at:merged.updatedAt,action:paths.length+' change'+(paths.length>1?'s':'')};
+    merged.activity=[...(Array.isArray(merged.activity)?merged.activity:[]),act].slice(-40);
+    state.data=merged;
+    if(remote){
+      const {error:e2}=await cloud.database.from('daily_cleaning_reports').update({data:merged,updated_at:merged.updatedAt}).eq('report_date',state.data.date);
+      if(e2) throw e2;
+    }else{
+      const {error:e2}=await cloud.database.from('daily_cleaning_reports').insert({report_date:state.data.date,data:merged});
+      if(e2) throw e2;
+    }
+    setSave('ok','Saved');
+  }catch(e){
+    console.warn(e);
+    paths.forEach(p=>state.dirty.add(p));
+    setSave('error','Not saved');
+    toast('Save failed - check connection / 保存失败，请检查网络',true);
+  }finally{ saving=false; }
+}
+
+/* ================= rendering ================= */
+function render(){renderEntry();renderOverview();renderHistory();}
+function sectionTasks(id){return TASKS.filter(t=>t.section===id);}
+function doneIn(id){const d=state.data;return sectionTasks(id).filter(t=>d.tasks[t.id]&&d.tasks[t.id].done).length;}
+function renderEntry(){
+  const d=state.data; if(!d)return;
+  let h='';
+  SECTIONS.forEach((sec,idx)=>{
+    const list=sectionTasks(sec.id);
+    const dn=doneIn(sec.id);
+    h+='<section class="card"><div class="card-hd"><div><h2>'+(idx+1)+' · '+esc(sec.title)+' <span class="zh">/ '+esc(sec.zh)+'</span></h2><div class="sub">Tick as you go / 完成后勾选</div></div><span class="badge" data-badge="'+sec.id+'">'+dn+' / '+list.length+' done</span></div>';
+    list.forEach(t=>{
+      const v=d.tasks[t.id]||{done:false,notes:''};
+      h+='<div class="row '+(v.done?'done':'')+'">'
+        +'<div class="row-main"><div class="area">'+esc(t.label)+' <span class="zh">/ '+esc(t.zh)+'</span></div>'
+        +'<div class="note-wrap"><input class="note" data-path="tasks.'+t.id+'.notes" placeholder="Notes / 备注 (optional)" value="'+esc(v.notes)+'"></div></div>'
+        +'<div class="row-side"><button class="check '+(v.done?'on':'')+'" data-check="tasks.'+t.id+'.done"><b>'+(v.done?'✓':'')+'</b><small>DONE</small></button><span class="lbl">完成</span></div></div>';
+    });
+    h+='</section>';
+  });
+  h+='<section class="card"><div class="card-hd"><div><h2>Signatures / 签字</h2><div class="sub">Confirm who did and checked the work / 确认执行人与检查人</div></div></div>'
+    +'<div class="sig"><div class="field"><label>Employee signature / 员工签字</label><input data-path="meta.empSig" value="'+esc(d.meta.empSig)+'" placeholder="Name / 姓名"></div>'
+    +'<div class="field"><label>Manager signature / 经理签字</label><input data-path="meta.mgrSig" value="'+esc(d.meta.mgrSig)+'" placeholder="Name / 姓名"></div></div></section>';
+  if(d.updatedAt){
+    h+='<div style="text-align:center;color:var(--ink-3);font-size:11.5px;padding:4px 0 12px">Last updated / 最后更新：'+esc(new Date(d.updatedAt).toLocaleString())+' by '+esc(d.updatedBy||'')+'</div>';
+  }
+  document.getElementById('paneEntry').innerHTML=h;
+}
+function renderOverview(){
+  const d=state.data,p=document.getElementById('paneOverview'); if(!d){p.innerHTML='';return;}
+  const dn=TASKS.filter(t=>d.tasks[t.id]&&d.tasks[t.id].done).length;
+  const notes=TASKS.filter(t=>(d.tasks[t.id]&&d.tasks[t.id].notes||'').trim()).length;
+  const pct=TASKS.length?Math.round(dn/TASKS.length*100):0;
+  let h='<section class="card"><div class="card-hd"><div><h2>Daily overview / 当日总览</h2><div class="sub">'+esc(d.date)+' · read-only / 只读</div></div><span class="badge">'+pct+'%</span></div>'
+    +'<div class="stats"><div class="stat"><div class="n">'+dn+'<span style="font-size:13px;color:var(--ink-3)">/'+TASKS.length+'</span></div><div class="l">Tasks done / 任务完成</div></div>'
+    +'<div class="stat"><div class="n">'+notes+'</div><div class="l">Notes recorded / 备注条数</div></div>'
+    +'<div class="stat"><div class="n">'+esc(d.meta.employee||'-')+'</div><div class="l">Employee / 员工</div></div>'
+    +'<div class="stat"><div class="n">'+esc(d.meta.manager||'-')+'</div><div class="l">Manager / 经理</div></div></div>'
+    +'<div class="prog"><i style="width:'+pct+'%"></i></div><div class="ov-grid">';
+  SECTIONS.forEach(sec=>{
+    h+='<div style="padding:10px 0 2px;font-weight:800;color:var(--brand-deep)">'+esc(sec.title)+' <span class="zh">/ '+esc(sec.zh)+'</span></div>';
+    sectionTasks(sec.id).forEach(t=>{
+      const v=d.tasks[t.id]||{};
+      h+='<div class="ov-item"><span class="tick '+(v.done?'':'miss')+'">'+(v.done?'✓':'○')+'</span><div><b>'+esc(t.label)+'</b> <span class="zh">/ '+esc(t.zh)+'</span>'
+        +(v.notes?'<div style="color:var(--ink-2);font-size:12px">Note / 备注：'+esc(v.notes)+'</div>':'')+'</div></div>';
+    });
+  });
+  h+='</div><div class="sig"><div class="field"><label>Employee / 员工</label><input value="'+esc(d.meta.empSig||d.meta.employee||'')+'" readonly></div>'
+    +'<div class="field"><label>Manager / 经理</label><input value="'+esc(d.meta.mgrSig||d.meta.manager||'')+'" readonly></div></div>'
+    +'<div class="readonly-note">This view is read-only. To make changes, open Staff entry. / 此视图只读，如需修改请打开“员工填写”。</div></section>';
+  p.innerHTML=h;
+}
+async function renderHistory(){
+  const p=document.getElementById('paneHistory');
+  p.innerHTML='<section class="card"><div class="card-hd"><div><h2>Record history / 历史记录</h2><div class="sub">Tap a date to view / 点击日期查看</div></div><button class="btn" id="histRefresh" style="padding:6px 10px;font-size:12px">Reload</button></div><div class="hist" id="histBody"><div class="empty">Loading... / 载入中</div></div></section>';
+  document.getElementById('histRefresh').onclick=()=>renderHistory();
+  try{
+    const {data,error}=await cloud.database.from('daily_cleaning_reports').select('report_date,data,updated_at').order('report_date',{ascending:false}).limit(120);
+    if(error)throw error;
+    const rows=data||[];
+    const body=document.getElementById('histBody');
+    if(!rows.length){body.innerHTML='<div class="empty">No records yet. Fill in today\'s checklist to start. / 暂无记录，先填写今天的检查表吧。</div>';return;}
+    body.innerHTML=rows.map(r=>{
+      const td=(r.data&&r.data.tasks)||{};
+      const dn=TASKS.filter(t=>td[t.id]&&td[t.id].done).length;
+      const pct=Math.round(dn/TASKS.length*100);
+      const dt=new Date(r.report_date+'T00:00:00');
+      const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+      const emp=(r.data&&r.data.meta&&r.data.meta.employee)||'';
+      return '<div class="hrow" data-date="'+esc(r.report_date)+'"><div class="hdate">'+esc(r.report_date)+'<small>'+wd+(emp?' · '+esc(emp):'')+'</small></div><div class="hbar"><i style="width:'+pct+'%"></i></div><span class="hpct">'+pct+'%</span><span style="color:var(--ink-3);font-size:12px">›</span></div>';
+    }).join('');
+    body.querySelectorAll('.hrow').forEach(el=>el.onclick=()=>{
+      document.getElementById('datePick').value=el.dataset.date;
+      loadDate(el.dataset.date); switchTab('overview'); window.scrollTo({top:0,behavior:'smooth'});
+    });
+  }catch(e){const b=document.getElementById('histBody');if(b)b.innerHTML='<div class="empty">Could not load history / 无法载入历史记录</div>';}
+}
+
+/* ================= events ================= */
+function switchTab(tab){
+  state.tab=tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.getElementById('paneEntry').style.display=tab==='entry'?'':'none';
+  document.getElementById('paneOverview').style.display=tab==='overview'?'':'none';
+  document.getElementById('paneHistory').style.display=tab==='history'?'':'none';
+  if(tab==='entry')renderEntry();
+  if(tab==='overview')renderOverview();
+  if(tab==='history')renderHistory();
+}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-check]');
+  if(c){
+    const path=c.dataset.check, val=!getPath(state.data,path);
+    markDirty(path,val);
+    c.classList.toggle('on',val);
+    c.querySelector('b').textContent=val?'✓':'';
+    const row=c.closest('.row'); if(row)row.classList.toggle('done',val);
+    const card=c.closest('.card'); const badge=card&&card.querySelector('[data-badge]');
+    if(badge){const id=badge.dataset.badge;badge.textContent=doneIn(id)+' / '+sectionTasks(id).length+' done';}
+  }
+});
+document.addEventListener('input',e=>{
+  const el=e.target;
+  if(el.dataset.path){markDirty(el.dataset.path,el.value);}
+  if(el.id==='empName'){markDirty('meta.employee',el.value);}
+  if(el.id==='workHours'){markDirty('meta.workingHours',el.value);}
+  if(el.id==='mgrName'){markDirty('meta.manager',el.value);}
+});
+document.getElementById('datePick').onchange=e=>{flush().then(()=>loadDate(e.target.value));};
+document.getElementById('refreshBtn').onclick=async()=>{await flush();await loadDate(state.data.date);toast('Reloaded / 已重新载入');};
+
+/* name picker */
+function openName(){
+  const box=document.getElementById('nameChips');
+  const names=[...new Set([...state.roster,'Manager 经理','Employee 员工'])];
+  box.innerHTML=names.map(n=>'<button class="chip '+(n===state.currentUser?'on':'')+'" data-n="'+esc(n)+'">'+esc(n)+'</button>').join('');
+  box.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{box.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');document.getElementById('customName').value='';});
+  document.getElementById('customName').value='';
+  document.getElementById('nameMask').classList.add('show');
+}
+document.getElementById('whoBtn').onclick=openName;
+document.getElementById('nameCancel').onclick=()=>document.getElementById('nameMask').classList.remove('show');
+document.getElementById('nameSave').onclick=()=>{
+  const custom=document.getElementById('customName').value.trim();
+  const picked=document.querySelector('#nameChips .chip.on');
+  const name=custom||(picked?picked.dataset.n:'');
+  if(!name){toast('Pick or type a name / 请选择或输入姓名',true);return;}
+  state.currentUser=name; localStorage.setItem('dc_current_user',name);
+  if(!state.roster.includes(name)){state.roster.push(name);localStorage.setItem('dc_roster',JSON.stringify(state.roster));}
+  document.getElementById('whoLabel').textContent=name;
+  document.getElementById('nameMask').classList.remove('show');
+  toast('Hello, '+name);
+};
+
+/* ================= Excel export ================= */
+function openExport(){
+  const mask=document.getElementById('exportMask');
+  document.querySelectorAll('[data-opt]').forEach(o=>o.classList.toggle('on',o.querySelector('input').checked));
+  document.getElementById('exportDates').style.display=document.querySelector('[name=expscope]:checked').value==='range'?'flex':'none';
+  document.getElementById('expFrom').value=state.data?state.data.date:TODAY;
+  document.getElementById('expTo').value=TODAY;
+  mask.classList.add('show');
+}
+document.querySelectorAll('[name=expscope]').forEach(r=>r.onchange=()=>{
+  document.querySelectorAll('[data-opt]').forEach(o=>o.classList.toggle('on',o.querySelector('input').checked));
+  document.getElementById('exportDates').style.display=document.querySelector('[name=expscope]:checked').value==='range'?'flex':'none';
+});
+document.getElementById('exportBtn').onclick=openExport;
+document.getElementById('expCancel').onclick=()=>document.getElementById('exportMask').classList.remove('show');
+document.getElementById('expGo').onclick=async()=>{
+  if(typeof XLSX==='undefined'){toast('Excel library not loaded - check connection / Excel 组件未载入',true);return;}
+  const scope=document.querySelector('[name=expscope]:checked').value;
+  let from,to;
+  if(scope==='day'){from=to=state.data.date;}
+  else if(scope==='range'){
+    from=document.getElementById('expFrom').value;to=document.getElementById('expTo').value;
+    if(!from||!to){toast('Pick both dates / 请选择开始和结束日期',true);return;}
+    if(from>to){toast('Start date must be before end date / 开始日期不能晚于结束日期',true);return;}
+  }
+  document.getElementById('expGo').disabled=true;
+  toast('Preparing Excel... / 正在生成...');
+  try{
+    await flush();
+    let q=cloud.database.from('daily_cleaning_reports').select('*').order('report_date',{ascending:true});
+    if(scope==='day')q=q.eq('report_date',from);
+    else if(scope==='range'){q=q.gte('report_date',from).lte('report_date',to);}
+    const {data:rows,error}=await q;
+    if(error)throw error;
+    if(!rows||!rows.length){toast('No records found for that selection / 该范围没有记录',true);return;}
+    buildExcel(rows,scope,from,to);
+    document.getElementById('exportMask').classList.remove('show');
+    toast('Excel downloaded / 已下载 Excel');
+  }catch(e){console.warn(e);toast('Export failed / 导出失败: '+(e&&e.message||''),true);}
+  finally{document.getElementById('expGo').disabled=false;}
+};
+function buildExcel(rows,scope,from,to){
+  const wb=XLSX.utils.book_new();
+  const ds=d=>String(d||'').slice(0,10);
+  const meta=(d,k)=>d&&d.meta&&d.meta[k]!=null?d.meta[k]:'';
+  const pct=d=>{const td=(d&&d.tasks)||{};return Math.round(TASKS.filter(t=>td[t.id]&&td[t.id].done).length/TASKS.length*100);};
+  const sum=[['Date 日期','Completion % 完成率','Employee 员工','Manager 经理','Working hours 工作时间','Employee signature 员工签字','Manager signature 经理签字','Last updated 最后更新','Updated by 更新人']];
+  rows.forEach(r=>{const d=r.data||{};
+    sum.push([ds(r.report_date),pct(d)+'%',meta(d,'employee'),meta(d,'manager'),meta(d,'workingHours'),meta(d,'empSig'),meta(d,'mgrSig'),d.updatedAt?new Date(d.updatedAt).toLocaleString():'',d.updatedBy||'']);
+  });
+  const wsSum=XLSX.utils.aoa_to_sheet(sum);
+  wsSum['!cols']=[{wch:13},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18},{wch:18},{wch:22},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,wsSum,'Summary 总览');
+
+  const det=[['Date 日期','Section 分区','Task 任务','任务(中)','Done 完成','Notes 备注']];
+  rows.forEach(r=>{const d=r.data||{},td=d.tasks||{};
+    TASKS.forEach(t=>{const v=td[t.id]||{};const sec=SECTIONS.find(s=>s.id===t.section)||{};
+      det.push([ds(r.report_date),sec.title,t.label,t.zh,v.done?'Yes':'No',v.notes||'']);});
+  });
+  const wsDet=XLSX.utils.aoa_to_sheet(det);
+  wsDet['!cols']=[{wch:13},{wch:26},{wch:42},{wch:28},{wch:11},{wch:36}];
+  XLSX.utils.book_append_sheet(wb,wsDet,'Daily checks 每日检查');
+
+  const ac=[['Date 日期','By 操作人','When 时间','Action 操作']];
+  rows.forEach(r=>{const d=r.data||{},list=Array.isArray(d.activity)?d.activity:[];
+    list.forEach(a=>ac.push([ds(r.report_date),a.by||'',a.at?new Date(a.at).toLocaleString():'',a.action||'']));
+  });
+  const wsAc=XLSX.utils.aoa_to_sheet(ac);
+  wsAc['!cols']=[{wch:13},{wch:22},{wch:22},{wch:26}];
+  XLSX.utils.book_append_sheet(wb,wsAc,'Activity 操作记录');
+
+  const suffix=scope==='all'?'ALL':scope==='day'?from:(from+'_to_'+to);
+  XLSX.writeFile(wb,'Cleaning_Check_'+suffix+'.xlsx');
+}
+
+/* ================= start ================= */
+document.getElementById('datePick').value=TODAY;
+if(state.currentUser)document.getElementById('whoLabel').textContent=state.currentUser;
+loadDate(TODAY);
+</script>
 </body>
 </html>
