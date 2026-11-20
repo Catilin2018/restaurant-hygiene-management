@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Daily Cleaning Log · Shaking Tang Management</title>
+<title>Daily Cleaning Log</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
@@ -16,6 +16,10 @@
   --shadow:0 1px 2px rgba(16,40,51,.05),0 6px 18px rgba(16,40,51,.06);--radius:14px;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
+.fatal{max-width:620px;margin:48px auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px;box-shadow:var(--shadow);text-align:center}
+.fatal h2{margin:0 0 8px;font-size:18px}
+.fatal p{margin:0;color:var(--ink-2);font-size:14px;line-height:1.7}
 html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
 button,input,textarea{font:inherit}
@@ -128,13 +132,14 @@ header{background:linear-gradient(135deg,var(--brand-deep),var(--brand));color:#
 </style>
 </head>
 <body>
+<div class="fatal" id="fatal" hidden></div>
 <header>
   <div class="head-inner">
     <div class="brand">
       <div class="logo">CL</div>
       <div>
         <h1>Daily Cleaning Log / 每日清洁记录</h1>
-        <p>Shaking Tang Management · One record per day / 每天一条记录</p>
+        <p id="brandSub">One record per day / 每天一条记录</p>
       </div>
     </div>
     <div class="head-actions">
@@ -232,12 +237,26 @@ const TASKS = [
   {id:'s03',section:'special',label:'Clean the walls areas 1, 2, 3 and 4',zh:'清洁 1、2、3、4 区墙面'}
 ];
 
+/* ================= restaurant from the link ================= */
+const params = new URLSearchParams(location.search);
+const SLUG = (params.get('r') || window.DEFAULT_RESTAURANT || 'shaking-tang').toLowerCase().replace(/[^a-z0-9-]/g,'');
+const CODE = params.get('k') || '';
+const RESTAURANT_NAME = params.get('n') || (window.RESTAURANT_NAMES && window.RESTAURANT_NAMES[SLUG]) || SLUG;
+const sk = function(k){ return 'dc_' + SLUG + '_' + k; };
+function fatal(title,msg){
+  const el=document.getElementById('fatal');
+  el.innerHTML='<h2>'+esc(title)+'</h2><p>'+esc(msg)+'</p>';
+  el.hidden=false;
+  ['.wrap','header','.controls','.tabs'].forEach(function(sel){const n=document.querySelector(sel);if(n)n.hidden=true;});
+}
+
 /* ================= cloud client (Supabase) ================= */
 let cloud;
 try{
   if(!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) throw new Error('Missing SUPABASE_URL / SUPABASE_ANON_KEY in config.js');
   cloud = { database: supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-    auth:{ persistSession:false, autoRefreshToken:false }
+    auth:{ persistSession:false, autoRefreshToken:false },
+    global:{ headers:{ 'x-restaurant-slug': SLUG, 'x-restaurant-code': CODE } }
   })};
 }catch(e){ console.error(e); setSave('error','Config error'); }
 
@@ -245,8 +264,8 @@ try{
 const TODAY = new Date().toLocaleDateString('en-CA');
 let state = {
   date: TODAY, data: null, dirty: new Set(),
-  currentUser: localStorage.getItem('dc_current_user') || '',
-  roster: JSON.parse(localStorage.getItem('dc_roster') || '[]'),
+  currentUser: localStorage.getItem(sk('current_user')) || '',
+  roster: JSON.parse(localStorage.getItem(sk('roster')) || '[]'),
   tab: 'entry'
 };
 function emptyData(date){
@@ -268,7 +287,7 @@ let saveTimer=null, saving=false;
 async function loadDate(date){
   setSave('saving','Loading...');
   try{
-    const {data,error} = await cloud.database.from('daily_cleaning_reports').select('*').eq('report_date',date).maybeSingle();
+    const {data,error} = await cloud.database.from('daily_cleaning_reports').select('*').eq('restaurant_slug',SLUG).eq('report_date',date).maybeSingle();
     if(error) throw error;
     const base = emptyData(date);
     if(data && data.data){
@@ -305,7 +324,7 @@ async function flush(){
   saving=true;
   const paths=[...state.dirty]; state.dirty.clear();
   try{
-    const {data:remote,error:e1}=await cloud.database.from('daily_cleaning_reports').select('*').eq('report_date',state.data.date).maybeSingle();
+    const {data:remote,error:e1}=await cloud.database.from('daily_cleaning_reports').select('*').eq('restaurant_slug',SLUG).eq('report_date',state.data.date).maybeSingle();
     if(e1) throw e1;
     const base = emptyData(state.data.date);
     const merged = remote && remote.data ? Object.assign(base, remote.data) : base;
@@ -318,10 +337,10 @@ async function flush(){
     merged.activity=[...(Array.isArray(merged.activity)?merged.activity:[]),act].slice(-40);
     state.data=merged;
     if(remote){
-      const {error:e2}=await cloud.database.from('daily_cleaning_reports').update({data:merged,updated_at:merged.updatedAt}).eq('report_date',state.data.date);
+      const {error:e2}=await cloud.database.from('daily_cleaning_reports').update({data:merged,updated_at:merged.updatedAt}).eq('restaurant_slug',SLUG).eq('report_date',state.data.date);
       if(e2) throw e2;
     }else{
-      const {error:e2}=await cloud.database.from('daily_cleaning_reports').insert({report_date:state.data.date,data:merged});
+      const {error:e2}=await cloud.database.from('daily_cleaning_reports').insert({restaurant_slug:SLUG,report_date:state.data.date,data:merged});
       if(e2) throw e2;
     }
     setSave('ok','Saved');
@@ -390,7 +409,7 @@ async function renderHistory(){
   p.innerHTML='<section class="card"><div class="card-hd"><div><h2>Record history / 历史记录</h2><div class="sub">Tap a date to view / 点击日期查看</div></div><button class="btn" id="histRefresh" style="padding:6px 10px;font-size:12px">Reload</button></div><div class="hist" id="histBody"><div class="empty">Loading... / 载入中</div></div></section>';
   document.getElementById('histRefresh').onclick=()=>renderHistory();
   try{
-    const {data,error}=await cloud.database.from('daily_cleaning_reports').select('report_date,data,updated_at').order('report_date',{ascending:false}).limit(120);
+    const {data,error}=await cloud.database.from('daily_cleaning_reports').select('report_date,data,updated_at').eq('restaurant_slug',SLUG).order('report_date',{ascending:false}).limit(120);
     if(error)throw error;
     const rows=data||[];
     const body=document.getElementById('histBody');
@@ -461,8 +480,8 @@ document.getElementById('nameSave').onclick=()=>{
   const picked=document.querySelector('#nameChips .chip.on');
   const name=custom||(picked?picked.dataset.n:'');
   if(!name){toast('Pick or type a name / 请选择或输入姓名',true);return;}
-  state.currentUser=name; localStorage.setItem('dc_current_user',name);
-  if(!state.roster.includes(name)){state.roster.push(name);localStorage.setItem('dc_roster',JSON.stringify(state.roster));}
+  state.currentUser=name; localStorage.setItem(sk('current_user'),name);
+  if(!state.roster.includes(name)){state.roster.push(name);localStorage.setItem(sk('roster'),JSON.stringify(state.roster));}
   document.getElementById('whoLabel').textContent=name;
   document.getElementById('nameMask').classList.remove('show');
   toast('Hello, '+name);
@@ -497,7 +516,7 @@ document.getElementById('expGo').onclick=async()=>{
   toast('Preparing Excel... / 正在生成...');
   try{
     await flush();
-    let q=cloud.database.from('daily_cleaning_reports').select('*').order('report_date',{ascending:true});
+    let q=cloud.database.from('daily_cleaning_reports').select('*').eq('restaurant_slug',SLUG).order('report_date',{ascending:true});
     if(scope==='day')q=q.eq('report_date',from);
     else if(scope==='range'){q=q.gte('report_date',from).lte('report_date',to);}
     const {data:rows,error}=await q;
@@ -514,12 +533,12 @@ function buildExcel(rows,scope,from,to){
   const ds=d=>String(d||'').slice(0,10);
   const meta=(d,k)=>d&&d.meta&&d.meta[k]!=null?d.meta[k]:'';
   const pct=d=>{const td=(d&&d.tasks)||{};return Math.round(TASKS.filter(t=>td[t.id]&&td[t.id].done).length/TASKS.length*100);};
-  const sum=[['Date 日期','Completion % 完成率','Employee 员工','Manager 经理','Working hours 工作时间','Employee signature 员工签字','Manager signature 经理签字','Last updated 最后更新','Updated by 更新人']];
+  const sum=[['Restaurant 餐厅','Date 日期','Completion % 完成率','Employee 员工','Manager 经理','Working hours 工作时间','Employee signature 员工签字','Manager signature 经理签字','Last updated 最后更新','Updated by 更新人']];
   rows.forEach(r=>{const d=r.data||{};
-    sum.push([ds(r.report_date),pct(d)+'%',meta(d,'employee'),meta(d,'manager'),meta(d,'workingHours'),meta(d,'empSig'),meta(d,'mgrSig'),d.updatedAt?new Date(d.updatedAt).toLocaleString():'',d.updatedBy||'']);
+    sum.push([RESTAURANT_NAME,ds(r.report_date),pct(d)+'%',meta(d,'employee'),meta(d,'manager'),meta(d,'workingHours'),meta(d,'empSig'),meta(d,'mgrSig'),d.updatedAt?new Date(d.updatedAt).toLocaleString():'',d.updatedBy||'']);
   });
   const wsSum=XLSX.utils.aoa_to_sheet(sum);
-  wsSum['!cols']=[{wch:13},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18},{wch:18},{wch:22},{wch:16}];
+  wsSum['!cols']=[{wch:26},{wch:13},{wch:14},{wch:16},{wch:16},{wch:16},{wch:18},{wch:18},{wch:22},{wch:16}];
   XLSX.utils.book_append_sheet(wb,wsSum,'Summary 总览');
 
   const det=[['Date 日期','Section 分区','Task 任务','任务(中)','Done 完成','Notes 备注']];
@@ -540,13 +559,28 @@ function buildExcel(rows,scope,from,to){
   XLSX.utils.book_append_sheet(wb,wsAc,'Activity 操作记录');
 
   const suffix=scope==='all'?'ALL':scope==='day'?from:(from+'_to_'+to);
-  XLSX.writeFile(wb,'Cleaning_Check_'+suffix+'.xlsx');
+  XLSX.writeFile(wb,'Cleaning_Check_'+SLUG+'_'+suffix+'.xlsx');
 }
 
 /* ================= start ================= */
-document.getElementById('datePick').value=TODAY;
-if(state.currentUser)document.getElementById('whoLabel').textContent=state.currentUser;
-loadDate(TODAY);
+document.title = 'Daily Cleaning Log · ' + RESTAURANT_NAME;
+document.getElementById('brandSub').textContent = RESTAURANT_NAME + ' · One record per day / 每天一条记录';
+if(!cloud){
+  fatal('Configuration error','The Supabase settings are missing. Check config.js.');
+}else if(!SLUG || !CODE){
+  fatal('Link not ready','This link is missing the restaurant details. Open the correct link for your restaurant.');
+}else{
+  cloud.database.from('daily_cleaning_reports').select('id').limit(1).then(function(r){
+    if(r.error){
+      console.warn(r.error);
+      fatal('Could not open data','The restaurant link was not accepted, or the database setup is not finished. Check the link, or ask the manager to run the latest schema.sql.');
+      return;
+    }
+    document.getElementById('datePick').value=TODAY;
+    if(state.currentUser)document.getElementById('whoLabel').textContent=state.currentUser;
+    loadDate(TODAY);
+  });
+}
 </script>
 </body>
 </html>
